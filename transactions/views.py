@@ -7,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 from annoying.decorators import render_to
 from blockexplorer.decorators import assert_valid_coin_symbol
 
-from transactions.forms import RawTXForm, EmbedDataForm
+from transactions.forms import RawTXForm
 
 from blockexplorer.settings import BLOCKCYPHER_PUBLIC_KEY, BLOCKCYPHER_API_KEY
 
@@ -263,67 +263,6 @@ def decode_tx(request, coin_symbol):
 def decodetx_forwarding(request):
     kwargs = {'coin_symbol': 'btc'}
     redir_url = reverse('decode_tx', kwargs=kwargs)
-    return HttpResponseRedirect(redir_url)
-
-
-@render_to('embedtx.html')
-def embed_txdata(request, coin_symbol):
-    '''
-    Embed data in the blockchain with blockcypher's API key
-    '''
-    initial = {'coin_symbol': coin_symbol}
-    form = EmbedDataForm(initial=initial)
-    if request.method == 'POST':
-        form = EmbedDataForm(data=request.POST)
-        if form.is_valid():
-            data_to_embed = form.cleaned_data['data_to_embed']
-            encoding_is_hex = form.cleaned_data['encoding_is_hex']
-            coin_symbol_to_use = form.cleaned_data['coin_symbol']
-
-            results = embed_data(
-                    to_embed=data_to_embed,
-                    api_key=BLOCKCYPHER_API_KEY,
-                    data_is_hex=encoding_is_hex,
-                    coin_symbol=coin_symbol_to_use,
-                    )
-            if 'error' in results:
-                messages.warning(request, results.get('error'))
-            elif 'errors' in results:
-                for error in results.get('errors'):
-                    messages.warning(request, error)
-            else:
-                # import pprint; pprint.pprint(results, width=1)
-                tx_hash = results['hash']
-                kwargs = {
-                        'coin_symbol': coin_symbol_to_use,
-                        'tx_hash': tx_hash,
-                        }
-                msg = _('Data succesfully embedded into TX <strong>%(tx_hash)s</strong>' % {
-                    'tx_hash': tx_hash,
-                    })
-                messages.success(request, msg, extra_tags='safe')
-                return HttpResponseRedirect(reverse('transaction_overview', kwargs=kwargs))
-
-    elif request.method == 'GET':
-        # Preseed tx hex if passed through GET string
-        tx_hex = request.GET.get('d')
-        encoding_is_hex = request.GET.get('e')
-        if tx_hex:
-            initial['data_to_embed'] = tx_hex
-        if encoding_is_hex:
-            initial['encoding_is_hex'] = encoding_is_hex
-        if tx_hex or encoding_is_hex:
-            form = RawTXForm(initial=initial)
-    return {
-            'coin_symbol': coin_symbol,
-            'form': form,
-            'is_embed_page': True,  # template hack
-            'is_input_page': True,
-            }
-
-
-def embed_txdata_forwarding(request):
-    redir_url = reverse('embed_txdata', kwargs={'coin_symbol': 'btc'})
     return HttpResponseRedirect(redir_url)
 
 
